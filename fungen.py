@@ -44,13 +44,15 @@ class Function(object):
     def __init__(self, name, type_string, local):
         self.name = name
         self.ret_type = type_string
-        self.args_local = local
+        self.args_local = None
+        if len(local) > 0:
+            self.args_local = local[0]
 
 function = CaselessKeyword('function')
 function += name.setResultsName('Name')
-function += Literal(':').setResultsName('Local')
+function += Literal(':')
 function += type_string.setResultsName('Type')
-function += Optional(args_local)
+function += Group(Optional(args_local)).setResultsName('Local')
 function += CaselessKeyword('end_function')
 function.setParseAction(
     lambda ts: Function(ts['Name'], ts['Type'], ts['Local']))
