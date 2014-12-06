@@ -113,17 +113,50 @@ def test_function_with_local():
     assert a.args_local.args[1].type_string == 'DWORD'
 
 
-# def test_function_with_local():
-#     target = """
-#       function A: void
-#       var_input
-#           a0: WORD;
-#           a1: DWORD;
-#       end_var
-#       end_function
-#       """
-#     p = Parser()
-#     a = p.function(target)
-#     assert isinstance(a, Function)
-#     assert a.name == 'A'
-#     assert a.ret_type == 'void'
+def test_function_with_local():
+    target = """
+      function A: void
+      var_input
+          a0: WORD;
+          a1: DWORD;
+      end_var
+      end_function
+      """
+    p = Parser()
+    a = p.function(target)
+    assert isinstance(a, Function)
+    assert a.name == 'A'
+    assert a.ret_type == 'void'
+    assert a.args_input.args[0].name == 'a0'
+    assert a.args_input.args[0].type_string == 'WORD'
+    assert a.args_input.args[1].name == 'a1'
+    assert a.args_input.args[1].type_string == 'DWORD'
+
+
+def test_function_with_funcall():
+    target = """
+      function A: void
+      funcall B
+      end_function
+      """
+    p = Parser()
+    a = p.function(target)
+    assert isinstance(a, Function)
+    assert a.name == 'A'
+    assert a.ret_type == 'void'
+    assert isinstance(a.body[0], Funcall)
+    assert a.body[0].name == 'B'
+
+
+def test_function_with_body():
+    target = """
+      function A: void
+      something
+      end_function
+      """
+    p = Parser()
+    a = p.function(target)
+    assert isinstance(a, Function)
+    assert a.name == 'A'
+    assert a.ret_type == 'void'
+    assert a.body[0] == 'something'

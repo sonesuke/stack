@@ -39,23 +39,50 @@ args_local += CaselessKeyword('end_var')
 args_local.setParseAction(lambda ts: ArgsLocal(ts['Args']))
 
 
+class Funcall(object):
+
+    def __init__(self, name):
+        self.name = name
+
+
+end_function = CaselessKeyword('end_function')
+statement = NotAny(end_function) + Regex(".*").setResultsName('Statement')
+statement.setParseAction(lambda ts: ts['Statement'])
+funcall = Literal('funcall') + name.setResultsName('Name')
+funcall.setParseAction(lambda ts: Funcall(ts['Name']))
+body = Group(ZeroOrMore(funcall | statement)).setResultsName('Body')
+body.setParseAction(lambda ts: ts['Body'])
+
+
 class Function(object):
 
-    def __init__(self, name, type_string, local):
+    def __init__(self, name, type_string, args_input, args_local, body):
         self.name = name
         self.ret_type = type_string
         self.args_local = None
-        if len(local) > 0:
-            self.args_local = local[0]
+        if len(args_input) > 0:
+            self.args_input = args_input[0]
+        self.args_local = None
+        if len(args_local) > 0:
+            self.args_local = args_local[0]
+        self.body = body
+
 
 function = CaselessKeyword('function')
 function += name.setResultsName('Name')
 function += Literal(':')
 function += type_string.setResultsName('Type')
 function += Group(Optional(args_local)).setResultsName('Local')
-function += CaselessKeyword('end_function')
+function += Group(Optional(args_input)).setResultsName('Input')
+function += body.setResultsName('Body')
+function += end_function
 function.setParseAction(
-    lambda ts: Function(ts['Name'], ts['Type'], ts['Local']))
+    lambda ts: Function(
+        ts['Name'],
+        ts['Type'],
+        ts['Input'],
+        ts['Local'],
+        ts['Body']))
 
 
 class Parser(object):
