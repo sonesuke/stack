@@ -41,15 +41,19 @@ args_local.setParseAction(lambda ts: ArgsLocal(ts['Args']))
 
 class Funcall(object):
 
-    def __init__(self, name):
+    def __init__(self, name, args):
         self.name = name
+        self.args = [p.strip() for p in args.split(',')]
 
 
 end_function = CaselessKeyword('end_function')
 statement = NotAny(end_function) + Regex(".*").setResultsName('Statement')
 statement.setParseAction(lambda ts: ts['Statement'])
 funcall = Literal('funcall') + name.setResultsName('Name')
-funcall.setParseAction(lambda ts: Funcall(ts['Name']))
+funcall += Literal('(')
+funcall += Regex(r'[^)]*').setResultsName('Args')
+funcall += Literal(')')
+funcall.setParseAction(lambda ts: Funcall(ts['Name'], ts['Args']))
 body = Group(ZeroOrMore(funcall | statement)).setResultsName('Body')
 body.setParseAction(lambda ts: ts['Body'])
 
@@ -83,21 +87,3 @@ function.setParseAction(
         ts['Input'],
         ts['Local'],
         ts['Body']))
-
-
-class Parser(object):
-
-    def __init__(self):
-        pass
-
-    def function(self, text):
-        return function.parseString(text)[0]
-
-    def args_local(self, text):
-        return args_local.parseString(text)[0]
-
-    def args_input(self, text):
-        return args_input.parseString(text)[0]
-
-    def arg(self, text):
-        return arg.parseString(text)[0]

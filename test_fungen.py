@@ -42,8 +42,7 @@ end_function
 
 def test_arg():
     target = "a1: WORD;"
-    p = Parser()
-    a = p.arg(target)
+    a = arg.parseString(target)[0]
     assert isinstance(a, Arg)
     assert a.name == 'a1'
     assert a.type_string == 'WORD'
@@ -56,8 +55,7 @@ def test_input_args():
           a1: DWORD;
       end_var
       """
-    p = Parser()
-    a = p.args_input(target)
+    a = args_input.parseString(target)[0]
     assert isinstance(a, ArgsInput)
     assert a.args[0].name == 'a0'
     assert a.args[0].type_string == 'WORD'
@@ -72,8 +70,7 @@ def test_local_args():
           a1: DWORD;
       end_var
       """
-    p = Parser()
-    a = p.args_local(target)
+    a = args_local.parseString(target)[0]
     assert isinstance(a, ArgsLocal)
     assert a.args[0].name == 'a0'
     assert a.args[0].type_string == 'WORD'
@@ -86,8 +83,7 @@ def test_function():
       function A: void
       end_function
       """
-    p = Parser()
-    a = p.function(target)
+    a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
@@ -102,8 +98,7 @@ def test_function_with_local():
       end_var
       end_function
       """
-    p = Parser()
-    a = p.function(target)
+    a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
@@ -122,8 +117,7 @@ def test_function_with_local():
       end_var
       end_function
       """
-    p = Parser()
-    a = p.function(target)
+    a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
@@ -133,14 +127,33 @@ def test_function_with_local():
     assert a.args_input.args[1].type_string == 'DWORD'
 
 
+def test_function_with_funcall_args():
+    target = """
+      function A: void
+      var
+          a0: WORD;
+          a1: DWORD;
+      end_var
+      funcall B(a0, a1)
+      end_function
+      """
+    a = function.parseString(target)[0]
+    assert isinstance(a, Function)
+    assert a.name == 'A'
+    assert a.ret_type == 'void'
+    assert isinstance(a.body[0], Funcall)
+    assert a.body[0].name == 'B'
+    assert a.body[0].args[0] == 'a0'
+    assert a.body[0].args[1] == 'a1'
+
+
 def test_function_with_funcall():
     target = """
       function A: void
-      funcall B
+      funcall B()
       end_function
       """
-    p = Parser()
-    a = p.function(target)
+    a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
@@ -154,8 +167,7 @@ def test_function_with_body():
       something
       end_function
       """
-    p = Parser()
-    a = p.function(target)
+    a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
