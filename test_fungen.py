@@ -46,6 +46,10 @@ def test_arg():
     assert isinstance(a, Arg)
     assert a.name == 'a1'
     assert a.type_string == 'WORD'
+    assert a.size == 2
+    a.assign('TM', 0)
+    assert a.device == 'TM0'
+    assert a.assign_string == 'TM0 = %s'
 
 
 def test_input_args():
@@ -61,6 +65,11 @@ def test_input_args():
     assert a.args[0].type_string == 'WORD'
     assert a.args[1].name == 'a1'
     assert a.args[1].type_string == 'DWORD'
+    a.assign('TM', 0)
+    assert a.args[0].device == 'TM0'
+    assert a.args[0].assign_string == 'TM0 = %s'
+    assert a.args[1].device == 'TM2'
+    assert a.args[1].assign_string == 'TM2 = %s'
 
 
 def test_local_args():
@@ -76,6 +85,11 @@ def test_local_args():
     assert a.args[0].type_string == 'WORD'
     assert a.args[1].name == 'a1'
     assert a.args[1].type_string == 'DWORD'
+    a.assign('TM', 0)
+    assert a.args[0].device == 'TM0'
+    assert a.args[0].assign_string == 'TM0 = %s'
+    assert a.args[1].device == 'TM2'
+    assert a.args[1].assign_string == 'TM2 = %s'
 
 
 def test_function():
@@ -87,6 +101,7 @@ def test_function():
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
+    assert a.size == 0
 
 
 def test_function_with_local():
@@ -106,9 +121,15 @@ def test_function_with_local():
     assert a.args_local.args[0].type_string == 'WORD'
     assert a.args_local.args[1].name == 'a1'
     assert a.args_local.args[1].type_string == 'DWORD'
+    assert a.size == 4
+    a.assign('TM', 0)
+    assert a.args_local.args[0].device == 'TM0'
+    assert a.args_local.args[0].assign_string == 'TM0 = %s'
+    assert a.args_local.args[1].device == 'TM2'
+    assert a.args_local.args[1].assign_string == 'TM2 = %s'
 
 
-def test_function_with_local():
+def test_function_with_input():
     target = """
       function A: void
       var_input
@@ -125,6 +146,49 @@ def test_function_with_local():
     assert a.args_input.args[0].type_string == 'WORD'
     assert a.args_input.args[1].name == 'a1'
     assert a.args_input.args[1].type_string == 'DWORD'
+    assert a.size == 4
+    a.assign('TM', 0)
+    assert a.args_input.args[0].device == 'TM0'
+    assert a.args_input.args[0].assign_string == 'TM0 = %s'
+    assert a.args_input.args[1].device == 'TM2'
+    assert a.args_input.args[1].assign_string == 'TM2 = %s'
+
+
+def test_function_with_input():
+    target = """
+      function A: void
+      var_input
+          a0: WORD;
+          a1: DWORD;
+      end_var
+      var
+          b0: WORD;
+          b1: DWORD;
+      end_var
+      end_function
+      """
+    a = function.parseString(target)[0]
+    assert isinstance(a, Function)
+    assert a.name == 'A'
+    assert a.ret_type == 'void'
+    assert a.args_input.args[0].name == 'a0'
+    assert a.args_input.args[0].type_string == 'WORD'
+    assert a.args_input.args[1].name == 'a1'
+    assert a.args_input.args[1].type_string == 'DWORD'
+    assert a.args_local.args[0].name == 'b0'
+    assert a.args_local.args[0].type_string == 'WORD'
+    assert a.args_local.args[1].name == 'b1'
+    assert a.args_local.args[1].type_string == 'DWORD'
+    assert a.size == 8
+    a.assign('TM', 0)
+    assert a.args_input.args[0].device == 'TM0'
+    assert a.args_input.args[0].assign_string == 'TM0 = %s'
+    assert a.args_input.args[1].device == 'TM2'
+    assert a.args_input.args[1].assign_string == 'TM2 = %s'
+    assert a.args_local.args[0].device == 'TM4'
+    assert a.args_local.args[0].assign_string == 'TM4 = %s'
+    assert a.args_local.args[1].device == 'TM6'
+    assert a.args_local.args[1].assign_string == 'TM6 = %s'
 
 
 def test_function_with_funcall_args():
