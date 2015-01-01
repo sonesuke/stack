@@ -277,16 +277,15 @@ ECall("Main", A)"""
     assert a.converted == expected
 
 
-"""
+def test_program():
+    target = """
 function B: void
-    var input
+    var_input
         a1: WORD;
         a2: WORD;
         a3: WORD;
     end_var
-
     something
-
 end_function
 
 function A: void
@@ -300,8 +299,27 @@ function A: void
     end_var
 
     something
-    funcall B(3, 4, 5);
+    funcall B(3, 4, 5)
     something
 
 end_function
 """
+    expected = """!!SBN B
+something
+!!RET
+!!SBN A
+something
+TM0 = 3
+TM2 = 4
+TM4 = 5
+ECall("Main", B)
+something
+!!RET
+"""
+    a = program.parseString(target)[0]
+    assert isinstance(a, Program)
+    assert len(a.funs) == 2
+    env = Environment('TM', 0, 'Main')
+    a.compile(env)
+    print a.converted
+    assert a.converted == expected

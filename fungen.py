@@ -90,6 +90,16 @@ class Statement(object):
     def __init__(self, st):
         self.statement = st
 
+    def compile(self, context_f, env):
+        f = context_f
+        if f.args_input is not None and f.args_input.size > 0:
+            for a in f.args_input.args:
+                self.statement = substitute(self.statement, a)
+        if f.args_local is not None and f.args_local.size > 0:
+            for a in f.args_local.args:
+                self.statement = substitute(self.statement, a)
+        self.converted = self.statement
+
 end_function = CaselessKeyword('end_function')
 statement = NotAny(end_function) + Regex(".*").setResultsName('Statement')
 statement.setParseAction(lambda ts: Statement(ts['Statement']))
@@ -124,7 +134,6 @@ class Funcall(object):
             if f.args_local is not None and f.args_local.size > 0:
                 for a in f.args_local.args:
                     self.args[i] = substitute(self.args[i], a)
-        print self.args
         for fs in env.functions:
             if fs.name == self.name:
                 f = fs
@@ -190,3 +199,22 @@ function.setParseAction(
         ts['Input'],
         ts['Local'],
         ts['Body']))
+
+
+class Program(object):
+
+    def __init__(self, funs):
+        self.funs = funs
+
+    def compile(self, env):
+        for f in self.funs:
+            f.assign(env)
+            env.append_function(f)
+        self.converted = ""
+        for f in self.funs:
+            f.compile(env)
+            self.converted += f.converted
+
+
+program = ZeroOrMore(function).setResultsName('Functions')
+program.setParseAction(lambda ts: Program(ts['Functions']))
