@@ -1,4 +1,5 @@
 from pyparsing import *
+import re
 
 
 class Environment(object):
@@ -52,7 +53,7 @@ class ArgsInput(object):
 
     def __init__(self, args):
         self.args = args
-        self.size = reduce(lambda x, y: x+y, map(lambda x: x.size, args))
+        self.size = reduce(lambda x, y: x + y, map(lambda x: x.size, args))
 
     def assign(self, env):
         for a in self.args:
@@ -84,6 +85,20 @@ args_local += CaselessKeyword('end_var')
 args_local.setParseAction(lambda ts: ArgsLocal(ts['Args']))
 
 
+class Statement(object):
+
+    def __init__(self, st):
+        self.statement = st
+
+end_function = CaselessKeyword('end_function')
+statement = NotAny(end_function) + Regex(".*").setResultsName('Statement')
+statement.setParseAction(lambda ts: Statement(ts['Statement']))
+
+
+def substitute(target, arg):
+    return re.sub(target, arg.name, arg.device)
+
+
 class Funcall(object):
 
     def __init__(self, name, args):
@@ -100,6 +115,15 @@ class Funcall(object):
             ret += l + "\n"
         return ret
 
+    def alocate(self, f):
+        for i in range(len(self.args)):
+            if f.args_input is not None and f.args_input.size > 0:
+                for a in f.args_input.args:
+                    self.args[i] = substitute(self.args[i], a)
+            if f.args_local is not None and f.args_local.size > 0:
+                for a in f.args_local.args:
+                    self.args[i] = substitute(self.args[i], a)
+
     def assign(self, env):
         self.converted = ""
         for f in env.functions:
@@ -108,9 +132,6 @@ class Funcall(object):
                 self.converted += 'ECall("%s", %s)' % (env.module, self.name)
 
 
-end_function = CaselessKeyword('end_function')
-statement = NotAny(end_function) + Regex(".*").setResultsName('Statement')
-statement.setParseAction(lambda ts: ts['Statement'])
 funcall = Literal('funcall') + name.setResultsName('Name')
 funcall += Literal('(')
 funcall += Regex(r'[^)]*').setResultsName('Args')
@@ -142,6 +163,10 @@ class Function(object):
             self.args_input.assign(env)
         if self.args_local is not None:
             self.args_local.assign(env)
+
+    def alocate(self):
+        for b in self.body:
+            b.alocate(self)
 
 
 function = CaselessKeyword('function')

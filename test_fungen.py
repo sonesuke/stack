@@ -177,6 +177,11 @@ def test_function_with_funcall_args():
       funcall B(a0, a1)
       end_function
       """
+    expected = """!!SBN A
+TM10 = TM0
+TM12 = TM2
+ECall("Main", B)
+!!RET"""
     a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
@@ -185,6 +190,16 @@ def test_function_with_funcall_args():
     assert a.body[0].name == 'B'
     assert a.body[0].args[0] == 'a0'
     assert a.body[0].args[1] == 'a1'
+    env = Environment('TM', 10, 'Main')
+    a1 = Arg('a1', 'WORD')
+    a2 = Arg('a2', 'WORD')
+    ai = ArgsInput([a1, a2])
+    f = Function('B', 'void', [ai], [], '')
+    f.assign(env)
+    env.append_function(f)
+    a.assign(env)
+    a.alocate()
+    assert a.converted == expected
 
 
 def test_function_with_funcall():
@@ -211,7 +226,7 @@ def test_function_with_body():
     assert isinstance(a, Function)
     assert a.name == 'A'
     assert a.ret_type == 'void'
-    assert a.body[0] == 'something'
+    assert a.body[0].statement == 'something'
 
 
 def test_funcall():
