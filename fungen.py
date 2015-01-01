@@ -96,7 +96,7 @@ statement.setParseAction(lambda ts: Statement(ts['Statement']))
 
 
 def substitute(target, arg):
-    return re.sub(target, arg.name, arg.device)
+    return re.sub(arg.name, arg.device, target)
 
 
 class Funcall(object):
@@ -105,7 +105,7 @@ class Funcall(object):
         self.name = name
         self.args = [p.strip() for p in args.split(',') if len(p.strip()) != 0]
 
-    def assign_args(self, f):
+    def compile_args(self, f):
         ret = ""
         if f.args_input is None:
             return ret
@@ -115,7 +115,8 @@ class Funcall(object):
             ret += l + "\n"
         return ret
 
-    def alocate(self, f):
+    def compile(self, context_f, env):
+        f = context_f
         for i in range(len(self.args)):
             if f.args_input is not None and f.args_input.size > 0:
                 for a in f.args_input.args:
@@ -123,13 +124,13 @@ class Funcall(object):
             if f.args_local is not None and f.args_local.size > 0:
                 for a in f.args_local.args:
                     self.args[i] = substitute(self.args[i], a)
-
-    def assign(self, env):
+        print self.args
+        for fs in env.functions:
+            if fs.name == self.name:
+                f = fs
         self.converted = ""
-        for f in env.functions:
-            if f.name == self.name:
-                self.converted = self.assign_args(f)
-                self.converted += 'ECall("%s", %s)' % (env.module, self.name)
+        self.converted = self.compile_args(f)
+        self.converted += 'ECall("%s", %s)' % (env.module, self.name)
 
 
 funcall = Literal('funcall') + name.setResultsName('Name')
@@ -164,9 +165,14 @@ class Function(object):
         if self.args_local is not None:
             self.args_local.assign(env)
 
-    def alocate(self):
+    def compile(self, env):
         for b in self.body:
-            b.alocate(self)
+            b.compile(self, env)
+        self.converted = ""
+        self.converted += '!!SBN %s\n' % self.name
+        for b in self.body:
+            self.converted += b.converted + '\n'
+        self.converted += '!!RET\n'
 
 
 function = CaselessKeyword('function')

@@ -178,10 +178,11 @@ def test_function_with_funcall_args():
       end_function
       """
     expected = """!!SBN A
-TM10 = TM0
-TM12 = TM2
+TM10 = TM14
+TM12 = TM16
 ECall("Main", B)
-!!RET"""
+!!RET
+"""
     a = function.parseString(target)[0]
     assert isinstance(a, Function)
     assert a.name == 'A'
@@ -197,8 +198,11 @@ ECall("Main", B)
     f = Function('B', 'void', [ai], [], '')
     f.assign(env)
     env.append_function(f)
+    print env.offset
     a.assign(env)
-    a.alocate()
+    env.append_function(a)
+    a.compile(env)
+    print a.converted
     assert a.converted == expected
 
 
@@ -241,7 +245,10 @@ def test_funcall():
     env = Environment('TM', 0, 'Main')
     f = Function('A', 'void', [], [], '')
     env.append_function(f)
-    a.assign(env)
+    context_f = Function('Main', 'void', [], [], '')
+    context_f.assign(env)
+    env.append_function(context_f)
+    a.compile(context_f, env)
     assert a.converted == expected
 
 
@@ -263,7 +270,10 @@ ECall("Main", A)"""
     f = Function('A', 'void', [ai], [], '')
     f.assign(env)
     env.append_function(f)
-    a.assign(env)
+    context_f = Function('Main', 'void', [], [], '')
+    context_f.assign(env)
+    env.append_function(context_f)
+    a.compile(context_f, env)
     assert a.converted == expected
 
 
