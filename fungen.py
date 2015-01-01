@@ -1,9 +1,20 @@
 from pyparsing import *
 
 
+class Environment(object):
+
+    def __init__(self, devkind, offset, module):
+        self.devkind = devkind
+        self.offset = offset
+        self.module = module
+        self.functions = []
+
+    def append_function(self, func):
+        self.functions.append(func)
+
+
 name = Word(alphanums)
 type_string = Word(alphas)
-
 
 assign_table = {
     'WORD': {'size': 2, 'assign': '%s = %s'},
@@ -26,8 +37,8 @@ class Arg(object):
         self.type_string = type_string
         self.size = get_size(type_string)
 
-    def assign(self, devkind, offset):
-        self.device = devkind + str(offset)
+    def assign(self, env):
+        self.device = env.devkind + str(env.offset)
         self.assign_string = get_assign_string(self.type_string, self.device)
 
 
@@ -43,11 +54,10 @@ class ArgsInput(object):
         self.args = args
         self.size = reduce(lambda x, y: x+y, map(lambda x: x.size, args))
 
-    def assign(self, devkind, offset):
+    def assign(self, env):
         for a in self.args:
-            a.assign(devkind, offset)
-            offset += a.size
-        return offset
+            a.assign(env)
+            env.offset += a.size
 
 
 args_input = CaselessKeyword('var_input')
@@ -62,11 +72,10 @@ class ArgsLocal(object):
         self.args = args
         self.size = sum([a.size for a in self.args])
 
-    def assign(self, devkind, offset):
+    def assign(self, env):
         for a in self.args:
-            a.assign(devkind, offset)
-            offset += a.size
-        return offset
+            a.assign(env)
+            env.offset += a.size
 
 
 args_local = CaselessKeyword('var')
@@ -79,7 +88,24 @@ class Funcall(object):
 
     def __init__(self, name, args):
         self.name = name
-        self.args = [p.strip() for p in args.split(',')]
+        self.args = [p.strip() for p in args.split(',') if len(p.strip()) != 0]
+
+    def assign_args(self, f):
+        ret = ""
+        if f.args_input is None:
+            return ret
+        assert len(f.args_input.args) == len(self.args)
+        for i in range(len(self.args)):
+            l = f.args_input.args[i].assign_string % self.args[i]
+            ret += l + "\n"
+        return ret
+
+    def assign(self, env):
+        self.converted = ""
+        for f in env.functions:
+            if f.name == self.name:
+                self.converted = self.assign_args(f)
+                self.converted += 'ECall("%s", %s)' % (env.module, self.name)
 
 
 end_function = CaselessKeyword('end_function')
@@ -111,11 +137,11 @@ class Function(object):
             self.size += self.args_local.size
         self.body = body
 
-    def assign(self, devkind, offset):
+    def assign(self, env):
         if self.args_input is not None:
-            offset = self.args_input.assign(devkind, offset)
+            self.args_input.assign(env)
         if self.args_local is not None:
-            offset = self.args_local.assign(devkind, offset)
+            self.args_local.assign(env)
 
 
 function = CaselessKeyword('function')

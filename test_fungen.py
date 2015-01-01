@@ -10,36 +10,6 @@ def test_pep8():
     assert result.total_errors == 0
 
 
-"""
-function B: void
-    var input
-        a1: WORD;
-        a2: WORD;
-        a3: WORD;
-    end_var
-
-    something
-
-end_function
-
-function A: void
-    var_input
-        a1: WORD;
-        a2: WORD;
-    end_var
-    var
-        b1: WORD;
-        b2: WORD;
-    end_var
-
-    something
-    funcall B(3, 4, 5);
-    smoething
-
-end_function
-"""
-
-
 def test_arg():
     target = "a1: WORD;"
     a = arg.parseString(target)[0]
@@ -47,7 +17,8 @@ def test_arg():
     assert a.name == 'a1'
     assert a.type_string == 'WORD'
     assert a.size == 2
-    a.assign('TM', 0)
+    env = Environment('TM', 0, 'Main')
+    a.assign(env)
     assert a.device == 'TM0'
     assert a.assign_string == 'TM0 = %s'
 
@@ -65,7 +36,8 @@ def test_input_args():
     assert a.args[0].type_string == 'WORD'
     assert a.args[1].name == 'a1'
     assert a.args[1].type_string == 'DWORD'
-    a.assign('TM', 0)
+    env = Environment('TM', 0, 'Main')
+    a.assign(env)
     assert a.args[0].device == 'TM0'
     assert a.args[0].assign_string == 'TM0 = %s'
     assert a.args[1].device == 'TM2'
@@ -85,7 +57,8 @@ def test_local_args():
     assert a.args[0].type_string == 'WORD'
     assert a.args[1].name == 'a1'
     assert a.args[1].type_string == 'DWORD'
-    a.assign('TM', 0)
+    env = Environment('TM', 0, 'Main')
+    a.assign(env)
     assert a.args[0].device == 'TM0'
     assert a.args[0].assign_string == 'TM0 = %s'
     assert a.args[1].device == 'TM2'
@@ -122,7 +95,8 @@ def test_function_with_local():
     assert a.args_local.args[1].name == 'a1'
     assert a.args_local.args[1].type_string == 'DWORD'
     assert a.size == 4
-    a.assign('TM', 0)
+    env = Environment('TM', 0, 'Main')
+    a.assign(env)
     assert a.args_local.args[0].device == 'TM0'
     assert a.args_local.args[0].assign_string == 'TM0 = %s'
     assert a.args_local.args[1].device == 'TM2'
@@ -147,7 +121,8 @@ def test_function_with_input():
     assert a.args_input.args[1].name == 'a1'
     assert a.args_input.args[1].type_string == 'DWORD'
     assert a.size == 4
-    a.assign('TM', 0)
+    env = Environment('TM', 0, 'Main')
+    a.assign(env)
     assert a.args_input.args[0].device == 'TM0'
     assert a.args_input.args[0].assign_string == 'TM0 = %s'
     assert a.args_input.args[1].device == 'TM2'
@@ -180,7 +155,8 @@ def test_function_with_input():
     assert a.args_local.args[1].name == 'b1'
     assert a.args_local.args[1].type_string == 'DWORD'
     assert a.size == 8
-    a.assign('TM', 0)
+    env = Environment('TM', 0, 'Main')
+    a.assign(env)
     assert a.args_input.args[0].device == 'TM0'
     assert a.args_input.args[0].assign_string == 'TM0 = %s'
     assert a.args_input.args[1].device == 'TM2'
@@ -236,3 +212,71 @@ def test_function_with_body():
     assert a.name == 'A'
     assert a.ret_type == 'void'
     assert a.body[0] == 'something'
+
+
+def test_funcall():
+    target = """
+      funcall A()
+    """
+    expected = 'ECall("Main", A)'
+    a = funcall.parseString(target)[0]
+    assert isinstance(a, Funcall)
+    assert a.name == 'A'
+    assert len(a.args) == 0
+    env = Environment('TM', 0, 'Main')
+    f = Function('A', 'void', [], [], '')
+    env.append_function(f)
+    a.assign(env)
+    assert a.converted == expected
+
+
+def test_funcall_with_args():
+    target = """
+      funcall A(1, 2)
+    """
+    expected = """TM0 = 1
+TM2 = 2
+ECall("Main", A)"""
+    a = funcall.parseString(target)[0]
+    assert isinstance(a, Funcall)
+    assert a.name == 'A'
+    assert len(a.args) == 2
+    env = Environment('TM', 0, 'Main')
+    a1 = Arg('a1', 'WORD')
+    a2 = Arg('a2', 'WORD')
+    ai = ArgsInput([a1, a2])
+    f = Function('A', 'void', [ai], [], '')
+    f.assign(env)
+    env.append_function(f)
+    a.assign(env)
+    assert a.converted == expected
+
+
+"""
+function B: void
+    var input
+        a1: WORD;
+        a2: WORD;
+        a3: WORD;
+    end_var
+
+    something
+
+end_function
+
+function A: void
+    var_input
+        a1: WORD;
+        a2: WORD;
+    end_var
+    var
+        b1: WORD;
+        b2: WORD;
+    end_var
+
+    something
+    funcall B(3, 4, 5);
+    something
+
+end_function
+"""
