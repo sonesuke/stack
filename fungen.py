@@ -15,11 +15,13 @@ class Environment(object):
 
 
 name = Word(alphanums)
-type_string = Word(alphas)
+type_string = Regex(r'[*a-zA-Z]+')
 
 assign_table = {
     'WORD': {'size': 2, 'assign': '%s = %s'},
-    'DWORD': {'size': 2, 'assign': '%s = %s'}
+    '*WORD': {'size': 2, 'assign': 'ADRSET(%s, %s)'},
+    'DWORD': {'size': 2, 'assign': '%s = %s'},
+    '*DWORD': {'size': 2, 'assign': 'ADRSET(%s, %s)'},
 }
 
 
@@ -151,6 +153,31 @@ body = Group(ZeroOrMore(funcall | statement)).setResultsName('Body')
 body.setParseAction(lambda ts: ts['Body'])
 
 
+indent_table = {
+    'FOR': {'before': 0, 'after': 1},
+    'NEXT': {'before': -1, 'after': 0},
+    'IF': {'before': 0, 'after': 1},
+    'ELSE': {'before': 0, 'after': 1},
+    'SELECT': {'before': 0, 'after': 1},
+    'END': {'before': -1, 'after': 0},
+}
+
+
+def before_indent(txt):
+    import re
+    for t in indent_table.keys():
+        if re.match(r'^\s*' + t, txt) is not None:
+            return indent_table[t]['before']
+    return 0
+
+def after_indent(txt):
+    import re
+    for t in indent_table.keys():
+        if re.match(r'^\s*' + t, txt) is not None:
+            return indent_table[t]['after']
+    return 0
+
+
 class Function(object):
 
     def __init__(self, name, type_string, args_input, args_local, body):
@@ -183,6 +210,16 @@ class Function(object):
             self.converted += b.converted + '\n'
         self.converted += '!!RET\n'
 
+    def pretty(self):
+        lines = self.converted.split('\n')
+        indent = 0
+        self.converted = ""
+        for l in lines:
+            indent += before_indent(l)
+            self.converted += ' ' * 4 * indent
+            self.converted += l + '\n'
+            indent += after_indent(l)
+
 
 function = CaselessKeyword('function')
 function += name.setResultsName('Name')
@@ -213,8 +250,31 @@ class Program(object):
         self.converted = ""
         for f in self.funs:
             f.compile(env)
+            f.pretty()
             self.converted += f.converted
 
 
 program = ZeroOrMore(function).setResultsName('Functions')
 program.setParseAction(lambda ts: Program(ts['Functions']))
+
+
+if __name__ == '__main__':
+    import sys
+    import re
+
+    argvs = sys.argv
+    argc = len(argvs)
+    if (argc != 4):
+        print 'Usage: #python %s filename device module' % argvs[0]
+        quit()
+    filename = argvs[1]
+    device = argvs[2]
+    module = argvs[3]
+    m = re.search(r'([a-zA-Z]+)([0-9]+)', device)
+    dvkind = m.group(1)
+    offset = int(m.group(2))
+
+    a = program.parseFile(filename)[0]
+    env = Environment(dvkind, offset, module)
+    a.compile(env)
+    print a.converted
